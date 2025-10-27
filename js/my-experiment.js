@@ -382,13 +382,14 @@ const practice_block = {
   randomize_order: true
 };
 
+// ▼▼▼ ご要望に応じてこの部分を変更 ▼▼▼
 const learning_procedure = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: function() { return `<div style="width: 800px; min-height: 600px; display: flex; align-items: center; justify-content: center;"><img id="learning_image" src="${jsPsych.timelineVariable('image')}" style="max-width: 100%; max-height: 600px; height: auto;"></div>`; },
   choices: ['j', 'k'],
   prompt: '<p style="font-size: 1.2em; text-align: center;"><b>J</b> = 屋内 / <b>K</b> = 屋外</p>',
-  // stimulus_duration: 1000, // 要確認
-  // trial_duration: 1500,    // 要確認
+  stimulus_duration: 1000, // 画像は1秒（1000ms）で消える
+  // trial_duration: 1500,    // コメントアウトのまま（キー入力で試行終了）
   data: { image_filename: jsPsych.timelineVariable('image'), sound_pattern: jsPsych.timelineVariable('sound_pattern'), task_phase: 'learning' },
   on_start: function(trial) {
     const sound_path = jsPsych.timelineVariable('sound');
@@ -396,6 +397,8 @@ const learning_procedure = {
     else { console.error("Error: Sound path is undefined for learning trial:", trial.data); }
   }
 };
+// ▲▲▲ 変更ここまで ▲▲▲
+
 const learning_stimuli_part1 = learning_stimuli.slice(0, Math.ceil(learning_stimuli.length / 2));
 const learning_stimuli_part2 = learning_stimuli.slice(Math.ceil(learning_stimuli.length / 2));
 const learning_block_1 = { timeline: [learning_procedure], timeline_variables: learning_stimuli_part1, randomize_order: true };
