@@ -36,11 +36,13 @@ async function saveCsvToServer(filename, csvText) {
 let participantInitials = 'unknown';
 
 const jsPsych = initJsPsych({
+  // ▼▼▼ ご要望に応じて on_finish (集計ロジック) を大幅に変更 ▼▼▼
   on_finish: async function() {
     jsPsych.getDisplayElement().innerHTML = '<p style="font-size: 20px;">結果を集計・保存しています。しばらくお待ちください...</p>';
 
-    // --- ここからデータ集計ロジック ---
+    // --- ここからデータ集計ロジック (大幅修正) ---
     try {
+        // --- Step 1: まず、サマリーデータに必要な計算を先にすべて行う ---
         const learning_trials = jsPsych.data.get().filter({ task_phase: 'learning' }).values();
         const image_rec_trials = jsPsych.data.get().filter({ task_phase: 'image_recognition' }).values();
         const sound_rec_trials = jsPsych.data.get().filter({ task_phase: 'sound_recognition' }).values();
@@ -85,21 +87,65 @@ const jsPsych = initJsPsych({
             if (isNaN(percentage)) { console.error("Calculated percentage is NaN", {correct, total}); return 0; }
             return parseFloat(percentage.toPrecision(2));
         }
+        
+        // ▼ サマリーデータを変数に格納
         const image_accuracy_A = calculate_percentage(image_rec_stats['パターンA'].correct, image_rec_stats['パターンA'].total);
         const image_accuracy_B = calculate_percentage(image_rec_stats['パターンB'].correct, image_rec_stats['パターンB'].total);
         const image_accuracy_X = calculate_percentage(image_rec_stats['パターンX'].correct, image_rec_stats['パターンX'].total);
         const sound_correct_count = sound_rec_trials.filter(trial => trial && trial.correct === true).length;
         const sound_total_count = sound_rec_trials.length > 0 ? sound_rec_trials.length : 0;
         const sound_accuracy = calculate_percentage(sound_correct_count, sound_total_count);
-        const header = 'participant_initials,image_accuracy_A,image_accuracy_B,image_accuracy_X,sound_accuracy\n';
         const safeInitials = participantInitials || 'unknown_id';
-        const results_row = `${safeInitials},${image_accuracy_A},${image_accuracy_B},${image_accuracy_X},${sound_accuracy}`;
-        const csvData = header + results_row;
+        
+        // ▼ サマリーデータを行データとして結合（毎行で使うため）
+        const summary_data_string = `${safeInitials},${image_accuracy_A},${image_accuracy_B},${image_accuracy_X},${sound_accuracy}`;
+
+        // --- Step 2: CSVヘッダー行を作成 ---
+        // サマリーのカラム + 学習フェーズ試行データのカラム
+        const header = [
+            'participant_initials', 'image_accuracy_A', 'image_accuracy_B', 'image_accuracy_X', 'sound_accuracy',
+            'trial_index', 'image_category_correct', 'sound_pattern', 'image_filename', 'response_key', 'response_category', 'correct', 'rt'
+        ].join(',') + '\n'; // .join(',') でカンマ区切りの1行の文字列にし、末尾に改行(\n)を追加
+
+        // --- Step 3: CSVデータ行をループで作成 ---
+        let data_rows = []; // 各行の文字列を格納する配列
+        learning_trials.forEach((trial, index) => {
+            // 必要な情報を取り出す
+            const trial_index = index + 1; // 試行番号 (0始まりを1始まりに)
+            const image_category_correct = trial.image_filename.includes('INDOOR') ? 'indoor' : (trial.image_filename.includes('OUTDOOR') ? 'outdoor' : 'N/A');
+            const sound_pattern = trial.sound_pattern || 'N/A';
+            const image_filename = trial.image_filename || 'N/A';
+            const response_key = trial.response || 'N/A';
+            const response_category = trial.response === 'j' ? 'indoor' : (trial.response === 'k' ? 'outdoor' : 'N/A');
+            const correct = trial.correct; // on_finish で計算済み (true/false/null)
+            const rt = trial.rt || 'N/A';
+
+            // 試行データのカラム文字列を作成
+            const trial_data_string = [
+                trial_index,
+                image_category_correct,
+                sound_pattern,
+                image_filename,
+                response_key,
+                response_category,
+                correct,
+                rt
+            ].join(',');
+            
+            // ★ サマリーデータと試行データを結合して1行にする
+            data_rows.push(summary_data_string + ',' + trial_data_string);
+        });
+        
+        // --- Step 4: 全CSV文字列を結合して保存 ---
+        const csvData = header + data_rows.join('\n'); // ヘッダー行と、全データ行を改行(\n)で結合
+        
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `summary_${safeInitials}_${timestamp}.csv`;
+        // ★ ファイル名を変更 (学習データが含まれることを明示)
+        const filename = `summary_and_learning_trials_${safeInitials}_${timestamp}.csv`;
 
         await saveCsvToServer(filename, csvData);
 
+        // --- Step 5: 終了メッセージ表示 (変更なし) ---
         jsPsych.getDisplayElement().innerHTML = `
             <div style="max-width: 800px; text-align: center; line-height: 1.6; font-size: 20px;">
                 <h2>実験終了</h2>
@@ -111,6 +157,7 @@ const jsPsych = initJsPsych({
                 <br>
                 <p>このウィンドウを閉じて終了してください。</p>
             </div>`;
+            
     } catch (dataProcessingError) {
         console.error('Data processing or saving failed:', dataProcessingError);
         jsPsych.getDisplayElement().innerHTML = `
@@ -121,8 +168,9 @@ const jsPsych = initJsPsych({
             <p>エラー詳細: ${dataProcessingError.message}</p>
           </div>`;
     }
-  }
-});
+  } // on_finish の終わり
+}); // initJsPsych の終わり
+// ▲▲▲ 変更ここまで ▲▲▲
 
 // -------------------- 各種試行の定義 --------------------
 
@@ -179,7 +227,6 @@ const task_explanation_trial = {
     post_trial_gap: 500
 };
 
-// ▼▼▼ ご要望に応じてこの部分を変更 ▼▼▼
 const instructions_start = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `<div style="max-width: 800px; text-align: left; line-height: 1.6;">
@@ -192,7 +239,6 @@ const instructions_start = {
     choices: [' '],
     post_trial_gap: 500
 };
-// ▲▲▲ 変更ここまで ▲▲▲
 
 const practice_instructions_start = {
   type: jsPsychHtmlKeyboardResponse,
@@ -382,7 +428,7 @@ const practice_block = {
   randomize_order: true
 };
 
-// ▼▼▼ ご要望に応じてこの部分を変更 ▼▼▼
+// ▼▼▼ ご要望に応じてこの部分を変更 (on_finish を追加) ▼▼▼
 const learning_procedure = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: function() { return `<div style="width: 800px; min-height: 600px; display: flex; align-items: center; justify-content: center;"><img id="learning_image" src="${jsPsych.timelineVariable('image')}" style="max-width: 100%; max-height: 600px; height: auto;"></div>`; },
@@ -395,7 +441,28 @@ const learning_procedure = {
     const sound_path = jsPsych.timelineVariable('sound');
     if (sound_path) { const audio = new Audio(sound_path); audio.play().catch(e => console.error("Learning audio play failed:", e, "Sound path:", sound_path)); }
     else { console.error("Error: Sound path is undefined for learning trial:", trial.data); }
+  },
+  // ★★★ ここから追加 ★★★
+  on_finish: function(data) {
+    // data.image_filename (例: 'scenes/INDOOR/gym/csu6.jpg') から正解を判定
+    let correct_response;
+    // .includes(文字列): 文字列が含まれているか (true/false)
+    if (data.image_filename.includes('INDOOR')) {
+        correct_response = 'j'; // 屋内なら 'j' が正解
+    } else if (data.image_filename.includes('OUTDOOR')) {
+        correct_response = 'k'; // 屋外なら 'k' が正解
+    } else {
+        correct_response = null; // 予期せぬエラー (練習画像など)
+    }
+    
+    // 正解と回答 (data.response) を比較して data.correct に true/false を設定
+    if (correct_response) {
+        data.correct = (data.response === correct_response);
+    } else {
+        data.correct = null;
+    }
   }
+  // ★★★ 追加ここまで ★★★
 };
 // ▲▲▲ 変更ここまで ▲▲▲
 
