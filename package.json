@@ -18,7 +18,9 @@
   "homepage": "https://github.com/qL00JpzZZ/jspsych#readme",
   "description": "",
   "dependencies": {
-    "googleapis": "^164.0.0",
+    "googleapis": "^164.0.0"
+  },
+  "devDependencies": {
     "dotenv": "^17.2.3"
   }
 }
