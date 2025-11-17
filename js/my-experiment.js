@@ -36,13 +36,15 @@ async function saveCsvToServer(filename, csvText) {
 let participantInitials = 'unknown';
 
 const jsPsych = initJsPsych({
-  // ▼▼▼ ご要望に応じて on_finish (集計ロジック) を大幅に変更 ▼▼▼
+  // ▼▼▼ ご要望に応じて on_finish (集計ロジック) を2ファイル保存形式に変更 ▼▼▼
   on_finish: async function() {
     jsPsych.getDisplayElement().innerHTML = '<p style="font-size: 20px;">結果を集計・保存しています。しばらくお待ちください...</p>';
 
-    // --- ここからデータ集計ロジック (大幅修正) ---
     try {
-        // --- Step 1: まず、サマリーデータに必要な計算を先にすべて行う ---
+        // --- Step 1: 共通の変数と全データを取得 ---
+        const safeInitials = participantInitials || 'unknown_id';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        
         const learning_trials = jsPsych.data.get().filter({ task_phase: 'learning' }).values();
         const image_rec_trials = jsPsych.data.get().filter({ task_phase: 'image_recognition' }).values();
         const sound_rec_trials = jsPsych.data.get().filter({ task_phase: 'sound_recognition' }).values();
@@ -51,77 +53,27 @@ const jsPsych = initJsPsych({
         if (!image_rec_trials || image_rec_trials.length === 0) console.warn('Image recognition trials data not found or empty.');
         if (!sound_rec_trials || sound_rec_trials.length === 0) console.warn('Sound recognition trials data not found or empty.');
 
-        const image_to_sound_map = new Map();
-        learning_trials.forEach(trial => {
-            if (trial && trial.image_filename && trial.sound_pattern) {
-                 image_to_sound_map.set(trial.image_filename, trial.sound_pattern);
-            } else {
-                 console.warn('Invalid learning trial data:', trial);
-            }
-        });
-
-        const image_rec_stats = {
-        'パターンA': { correct: 0, total: 0 },
-        'パターンB': { correct: 0, total: 0 },
-        'パターンX': { correct: 0, total: 0 }
-        };
-        image_rec_trials.forEach(trial => {
-            if (!trial) { console.warn('Invalid image recognition trial data: null trial'); return; }
-            if (trial.status === 'old') {
-                const filename = trial.image_filename;
-                if (!filename) { console.warn('Image recognition trial missing image_filename:', trial); return; }
-                const sound_pattern = image_to_sound_map.get(filename);
-                if (sound_pattern && image_rec_stats[sound_pattern]) {
-                    image_rec_stats[sound_pattern].total++;
-                    if (trial.correct === true) { image_rec_stats[sound_pattern].correct++; }
-                    else if (trial.correct !== false) { console.warn('Image recognition trial.correct is not boolean true/false:', trial); }
-                } else if (!sound_pattern && image_to_sound_map.has(filename)) { console.warn(`Sound pattern in map is invalid for image: ${filename}`, trial); }
-                else if (!image_to_sound_map.has(filename)) { console.warn(`Image not found in learning map: ${filename}`, trial); }
-                else { console.warn(`Invalid sound_pattern category found: ${sound_pattern}`, trial); }
-            }
-        });
-
-        function calculate_percentage(correct, total) {
-            if (total === 0) return 0;
-            const percentage = (correct / total) * 100;
-            if (isNaN(percentage)) { console.error("Calculated percentage is NaN", {correct, total}); return 0; }
-            return parseFloat(percentage.toPrecision(2));
-        }
+        // --- Step 2: [ファイル1] 学習フェーズのデータを作成・保存 ---
         
-        // ▼ サマリーデータを変数に格納
-        const image_accuracy_A = calculate_percentage(image_rec_stats['パターンA'].correct, image_rec_stats['パターンA'].total);
-        const image_accuracy_B = calculate_percentage(image_rec_stats['パターンB'].correct, image_rec_stats['パターンB'].total);
-        const image_accuracy_X = calculate_percentage(image_rec_stats['パターンX'].correct, image_rec_stats['パターンX'].total);
-        const sound_correct_count = sound_rec_trials.filter(trial => trial && trial.correct === true).length;
-        const sound_total_count = sound_rec_trials.length > 0 ? sound_rec_trials.length : 0;
-        const sound_accuracy = calculate_percentage(sound_correct_count, sound_total_count);
-        const safeInitials = participantInitials || 'unknown_id';
-        
-        // ▼ サマリーデータを行データとして結合（毎行で使うため）
-        const summary_data_string = `${safeInitials},${image_accuracy_A},${image_accuracy_B},${image_accuracy_X},${sound_accuracy}`;
+        // ヘッダー行
+        const learning_header = [
+            'participant_initials', 'trial_index', 'image_category_correct', 'sound_pattern', 'image_filename', 'response_key', 'response_category', 'correct', 'rt'
+        ].join(',') + '\n';
 
-        // --- Step 2: CSVヘッダー行を作成 ---
-        // サマリーのカラム + 学習フェーズ試行データのカラム
-        const header = [
-            'participant_initials', 'image_accuracy_A', 'image_accuracy_B', 'image_accuracy_X', 'sound_accuracy',
-            'trial_index', 'image_category_correct', 'sound_pattern', 'image_filename', 'response_key', 'response_category', 'correct', 'rt'
-        ].join(',') + '\n'; // .join(',') でカンマ区切りの1行の文字列にし、末尾に改行(\n)を追加
-
-        // --- Step 3: CSVデータ行をループで作成 ---
-        let data_rows = []; // 各行の文字列を格納する配列
+        // データ行
+        let learning_data_rows = [];
         learning_trials.forEach((trial, index) => {
-            // 必要な情報を取り出す
-            const trial_index = index + 1; // 試行番号 (0始まりを1始まりに)
+            const trial_index = index + 1;
             const image_category_correct = trial.image_filename.includes('INDOOR') ? 'indoor' : (trial.image_filename.includes('OUTDOOR') ? 'outdoor' : 'N/A');
             const sound_pattern = trial.sound_pattern || 'N/A';
             const image_filename = trial.image_filename || 'N/A';
             const response_key = trial.response || 'N/A';
             const response_category = trial.response === 'j' ? 'indoor' : (trial.response === 'k' ? 'outdoor' : 'N/A');
-            const correct = trial.correct; // on_finish で計算済み (true/false/null)
+            const correct = trial.correct; // learning_procedure の on_finish で計算済み
             const rt = trial.rt || 'N/A';
 
-            // 試行データのカラム文字列を作成
-            const trial_data_string = [
+            const row = [
+                safeInitials, // 参加者IDを毎行に追加
                 trial_index,
                 image_category_correct,
                 sound_pattern,
@@ -131,19 +83,112 @@ const jsPsych = initJsPsych({
                 correct,
                 rt
             ].join(',');
-            
-            // ★ サマリーデータと試行データを結合して1行にする
-            data_rows.push(summary_data_string + ',' + trial_data_string);
+            learning_data_rows.push(row);
         });
-        
-        // --- Step 4: 全CSV文字列を結合して保存 ---
-        const csvData = header + data_rows.join('\n'); // ヘッダー行と、全データ行を改行(\n)で結合
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        // ★ ファイル名を変更 (学習データが含まれることを明示)
-        const filename = `${safeInitials}_${timestamp}.csv`;
 
-        await saveCsvToServer(filename, csvData);
+        // CSV結合とファイル名定義
+        const learning_csvData = learning_header + learning_data_rows.join('\n');
+        const learning_filename = `learning_${safeInitials}_${timestamp}.csv`; // ★ご要望のファイル名
+
+        // --- Step 3: [ファイル2] テストフェーズのデータを作成・保存 ---
+
+        // A) サマリーデータ（正答率）の計算
+        const image_to_sound_map = new Map();
+        learning_trials.forEach(trial => {
+            if (trial && trial.image_filename && trial.sound_pattern) {
+                 image_to_sound_map.set(trial.image_filename, trial.sound_pattern);
+            }
+        });
+
+        const image_rec_stats = {
+        'パターンA': { correct: 0, total: 0 },
+        'パターンB': { correct: 0, total: 0 },
+        'パターンX': { correct: 0, total: 0 }
+        };
+        image_rec_trials.forEach(trial => {
+            if (!trial) { return; }
+            if (trial.status === 'old') {
+                const filename = trial.image_filename;
+                if (!filename) { return; }
+                const sound_pattern = image_to_sound_map.get(filename);
+                if (sound_pattern && image_rec_stats[sound_pattern]) {
+                    image_rec_stats[sound_pattern].total++;
+                    if (trial.correct === true) { image_rec_stats[sound_pattern].correct++; }
+                }
+            }
+        });
+
+        function calculate_percentage(correct, total) {
+            if (total === 0) return 0;
+            const percentage = (correct / total) * 100;
+            if (isNaN(percentage)) { return 0; }
+            return parseFloat(percentage.toPrecision(2));
+        }
+        
+        const image_accuracy_A = calculate_percentage(image_rec_stats['パターンA'].correct, image_rec_stats['パターンA'].total);
+        const image_accuracy_B = calculate_percentage(image_rec_stats['パターンB'].correct, image_rec_stats['パターンB'].total);
+        const image_accuracy_X = calculate_percentage(image_rec_stats['パターンX'].correct, image_rec_stats['パターンX'].total);
+        const sound_correct_count = sound_rec_trials.filter(trial => trial && trial.correct === true).length;
+        const sound_total_count = sound_rec_trials.length > 0 ? sound_rec_trials.length : 0;
+        const sound_accuracy = calculate_percentage(sound_correct_count, sound_total_count);
+        
+        // 毎行に追加するサマリー文字列
+        const summary_data_string = `${safeInitials},${image_accuracy_A},${image_accuracy_B},${image_accuracy_X},${sound_accuracy}`;
+
+        // B) テストデータのヘッダー行
+        const test_header = [
+            'participant_initials', 'image_accuracy_A', 'image_accuracy_B', 'image_accuracy_X', 'sound_accuracy',
+            'trial_index', 'task_phase', 'stimulus', 'response_key', 'correct', 'rt', 'image_status_or_sound_order'
+        ].join(',') + '\n';
+
+        // C) テストデータのデータ行
+        let test_data_rows = [];
+        let test_trial_index = 0; // 学習とは別カウントの試行番号
+
+        image_rec_trials.forEach(trial => {
+            test_trial_index++;
+            const row = [
+                summary_data_string, // サマリーデータを毎行に追加
+                test_trial_index,
+                trial.task_phase || 'image_recognition',
+                trial.image_filename || 'N/A', // stimulus
+                trial.response || 'N/A',
+                trial.correct,
+                trial.rt || 'N/A',
+                trial.status || 'N/A' // 'old' or 'new'
+            ].join(',');
+            test_data_rows.push(row);
+        });
+
+        sound_rec_trials.forEach(trial => {
+            test_trial_index++;
+            // 音声ペアを文字列として結合
+            const stimulus_str = (trial.old_pair ? trial.old_pair[0]+'+'+trial.old_pair[1] : 'N/A');
+            const order_str = (trial.presentation_order ? trial.presentation_order.join('/') : 'N/A');
+            
+            const row = [
+                summary_data_string, // サマリーデータを毎行に追加
+                test_trial_index,
+                trial.task_phase || 'sound_recognition',
+                stimulus_str, // stimulus
+                trial.response || 'N/A',
+                trial.correct,
+                trial.rt || 'N/A',
+                order_str // 'old/new' or 'new/old'
+            ].join(',');
+            test_data_rows.push(row);
+        });
+
+        // D) CSV結合とファイル名定義
+        const test_csvData = test_header + test_data_rows.join('\n');
+        const test_filename = `test_${safeInitials}_${timestamp}.csv`; // ★ご要望のファイル名
+
+        // --- Step 4: 2つのファイルを両方保存する ---
+        // Promise.all を使うと、2つの保存リクエストを並行して実行できる
+        await Promise.all([
+            saveCsvToServer(learning_filename, learning_csvData),
+            saveCsvToServer(test_filename, test_csvData)
+        ]);
 
         // --- Step 5: 終了メッセージ表示 (変更なし) ---
         jsPsych.getDisplayElement().innerHTML = `
@@ -170,7 +215,6 @@ const jsPsych = initJsPsych({
     }
   } // on_finish の終わり
 }); // initJsPsych の終わり
-// ▲▲▲ 変更ここまで ▲▲▲
 
 // -------------------- 各種試行の定義 --------------------
 

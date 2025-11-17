@@ -1,7 +1,11 @@
 // ファイルパス: api/saveToDrive.js
 
+// ▼▼▼ 構文エラーを修正 (require を import に変更) ▼▼▼
+import * as dotenv from 'dotenv';
+dotenv.config();
 
-const { google } = require('googleapis');
+import { google } from 'googleapis';
+// ▲▲▲ 修正ここまで ▲▲▲
 
 // Vercelのサーバーレス関数の標準的な形式
 export default async function handler(req, res) {
