@@ -36,7 +36,6 @@ async function saveCsvToServer(filename, csvText) {
 let participantInitials = 'unknown';
 
 const jsPsych = initJsPsych({
-  // ▼▼▼ ご要望に応じて on_finish (集計ロジック) を2ファイル保存形式に変更 ▼▼▼
   on_finish: async function() {
     jsPsych.getDisplayElement().innerHTML = '<p style="font-size: 20px;">結果を集計・保存しています。しばらくお待ちください...</p>';
 
@@ -54,13 +53,10 @@ const jsPsych = initJsPsych({
         if (!sound_rec_trials || sound_rec_trials.length === 0) console.warn('Sound recognition trials data not found or empty.');
 
         // --- Step 2: [ファイル1] 学習フェーズのデータを作成・保存 ---
-        
-        // ヘッダー行
         const learning_header = [
             'participant_initials', 'trial_index', 'image_category_correct', 'sound_pattern', 'image_filename', 'response_key', 'response_category', 'correct', 'rt'
         ].join(',') + '\n';
 
-        // データ行
         let learning_data_rows = [];
         learning_trials.forEach((trial, index) => {
             const trial_index = index + 1;
@@ -69,11 +65,11 @@ const jsPsych = initJsPsych({
             const image_filename = trial.image_filename || 'N/A';
             const response_key = trial.response || 'N/A';
             const response_category = trial.response === 'j' ? 'indoor' : (trial.response === 'k' ? 'outdoor' : 'N/A');
-            const correct = trial.correct; // learning_procedure の on_finish で計算済み
+            const correct = trial.correct;
             const rt = trial.rt || 'N/A';
 
             const row = [
-                safeInitials, // 参加者IDを毎行に追加
+                safeInitials,
                 trial_index,
                 image_category_correct,
                 sound_pattern,
@@ -86,13 +82,10 @@ const jsPsych = initJsPsych({
             learning_data_rows.push(row);
         });
 
-        // CSV結合とファイル名定義
         const learning_csvData = learning_header + learning_data_rows.join('\n');
-        const learning_filename = `learning_${safeInitials}_${timestamp}.csv`; // ★ご要望のファイル名
+        const learning_filename = `learning_${safeInitials}_${timestamp}.csv`;
 
         // --- Step 3: [ファイル2] テストフェーズのデータを作成・保存 ---
-
-        // A) サマリーデータ（正答率）の計算
         const image_to_sound_map = new Map();
         learning_trials.forEach(trial => {
             if (trial && trial.image_filename && trial.sound_pattern) {
@@ -132,65 +125,57 @@ const jsPsych = initJsPsych({
         const sound_total_count = sound_rec_trials.length > 0 ? sound_rec_trials.length : 0;
         const sound_accuracy = calculate_percentage(sound_correct_count, sound_total_count);
         
-        // 毎行に追加するサマリー文字列
         const summary_data_string = `${safeInitials},${image_accuracy_A},${image_accuracy_B},${image_accuracy_X},${sound_accuracy}`;
 
-        // B) テストデータのヘッダー行
         const test_header = [
             'participant_initials', 'image_accuracy_A', 'image_accuracy_B', 'image_accuracy_X', 'sound_accuracy',
             'trial_index', 'task_phase', 'stimulus', 'response_key', 'correct', 'rt', 'image_status_or_sound_order'
         ].join(',') + '\n';
 
-        // C) テストデータのデータ行
         let test_data_rows = [];
-        let test_trial_index = 0; // 学習とは別カウントの試行番号
+        let test_trial_index = 0;
 
         image_rec_trials.forEach(trial => {
             test_trial_index++;
             const row = [
-                summary_data_string, // サマリーデータを毎行に追加
+                summary_data_string,
                 test_trial_index,
                 trial.task_phase || 'image_recognition',
-                trial.image_filename || 'N/A', // stimulus
+                trial.image_filename || 'N/A',
                 trial.response || 'N/A',
                 trial.correct,
                 trial.rt || 'N/A',
-                trial.status || 'N/A' // 'old' or 'new'
+                trial.status || 'N/A'
             ].join(',');
             test_data_rows.push(row);
         });
 
         sound_rec_trials.forEach(trial => {
             test_trial_index++;
-            // 音声ペアを文字列として結合
             const stimulus_str = (trial.old_pair ? trial.old_pair[0]+'+'+trial.old_pair[1] : 'N/A');
             const order_str = (trial.presentation_order ? trial.presentation_order.join('/') : 'N/A');
             
             const row = [
-                summary_data_string, // サマリーデータを毎行に追加
+                summary_data_string,
                 test_trial_index,
                 trial.task_phase || 'sound_recognition',
-                stimulus_str, // stimulus
+                stimulus_str,
                 trial.response || 'N/A',
                 trial.correct,
                 trial.rt || 'N/A',
-                order_str // 'old/new' or 'new/old'
+                order_str
             ].join(',');
             test_data_rows.push(row);
         });
 
-        // D) CSV結合とファイル名定義
         const test_csvData = test_header + test_data_rows.join('\n');
-        const test_filename = `test_${safeInitials}_${timestamp}.csv`; // ★ご要望のファイル名
+        const test_filename = `test_${safeInitials}_${timestamp}.csv`;
 
-        // --- Step 4: 2つのファイルを両方保存する ---
-        // Promise.all を使うと、2つの保存リクエストを並行して実行できる
         await Promise.all([
             saveCsvToServer(learning_filename, learning_csvData),
             saveCsvToServer(test_filename, test_csvData)
         ]);
 
-        // --- Step 5: 終了メッセージ表示 (変更なし) ---
         jsPsych.getDisplayElement().innerHTML = `
             <div style="max-width: 800px; text-align: center; line-height: 1.6; font-size: 20px;">
                 <h2>実験終了</h2>
@@ -213,8 +198,8 @@ const jsPsych = initJsPsych({
             <p>エラー詳細: ${dataProcessingError.message}</p>
           </div>`;
     }
-  } // on_finish の終わり
-}); // initJsPsych の終わり
+  }
+});
 
 // -------------------- 各種試行の定義 --------------------
 
@@ -455,14 +440,40 @@ for (let i = 0; i < num_sound_test_trials; i++) {
 // タイムラインの構築と実行
 // =========================================================================
 
-const all_image_paths_for_preload = practice_image_files.concat(learning_images, new_images_for_test);
-const all_sound_paths_for_preload = all_sounds;
-const preload_trial = {
+// ▼▼▼ preload を分割するための準備 ▼▼▼
+// 1. 全音声と練習画像を ID入力直後に読み込む
+const preload_initial = {
   type: jsPsychPreload,
-  images: all_image_paths_for_preload,
-  audio: all_sound_paths_for_preload,
-  message: '実験の準備をしています。しばらくお待ちください...'
+  images: practice_image_files,
+  audio: all_sounds,
+  message: '実験の準備をしています (1/4)...'
 };
+
+// 2. 学習用画像 (120枚) を分割して読み込む
+// learning_stimuli はオブジェクトの配列なので、画像パスだけ抽出する必要がある
+// ただし、learning_images はパスの配列なのでそのまま使える
+const learning_images_part1 = learning_images.slice(0, 60); // 前半60枚
+const learning_images_part2 = learning_images.slice(60);    // 後半60枚
+
+const preload_learning_1 = {
+  type: jsPsychPreload,
+  images: learning_images_part1,
+  message: '実験の準備をしています (2/4)...'
+};
+
+const preload_learning_2 = {
+  type: jsPsychPreload,
+  images: learning_images_part2,
+  message: '実験の準備をしています (3/4)...'
+};
+
+// 3. テスト用画像 (30枚) をテスト前に読み込む
+const preload_test = {
+    type: jsPsychPreload,
+    images: new_images_for_test,
+    message: '実験の準備をしています (4/4)...'
+};
+// ▲▲▲ 分割準備ここまで ▲▲▲
 
 const practice_selection = jsPsych.randomization.sampleWithoutReplacement(practice_image_files, 3);
 const practice_timeline_variables = practice_selection.map(img_path => { return { image: img_path }; });
@@ -472,7 +483,6 @@ const practice_block = {
   randomize_order: true
 };
 
-// ▼▼▼ ご要望に応じてこの部分を変更 (on_finish を追加) ▼▼▼
 const learning_procedure = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: function() { return `<div style="width: 800px; min-height: 600px; display: flex; align-items: center; justify-content: center;"><img id="learning_image" src="${jsPsych.timelineVariable('image')}" style="max-width: 100%; max-height: 600px; height: auto;"></div>`; },
@@ -486,29 +496,22 @@ const learning_procedure = {
     if (sound_path) { const audio = new Audio(sound_path); audio.play().catch(e => console.error("Learning audio play failed:", e, "Sound path:", sound_path)); }
     else { console.error("Error: Sound path is undefined for learning trial:", trial.data); }
   },
-  // ★★★ ここから追加 ★★★
   on_finish: function(data) {
-    // data.image_filename (例: 'scenes/INDOOR/gym/csu6.jpg') から正解を判定
     let correct_response;
-    // .includes(文字列): 文字列が含まれているか (true/false)
     if (data.image_filename.includes('INDOOR')) {
-        correct_response = 'j'; // 屋内なら 'j' が正解
+        correct_response = 'j';
     } else if (data.image_filename.includes('OUTDOOR')) {
-        correct_response = 'k'; // 屋外なら 'k' が正解
+        correct_response = 'k';
     } else {
-        correct_response = null; // 予期せぬエラー (練習画像など)
+        correct_response = null;
     }
-    
-    // 正解と回答 (data.response) を比較して data.correct に true/false を設定
     if (correct_response) {
         data.correct = (data.response === correct_response);
     } else {
         data.correct = null;
     }
   }
-  // ★★★ 追加ここまで ★★★
 };
-// ▲▲▲ 変更ここまで ▲▲▲
 
 const learning_stimuli_part1 = learning_stimuli.slice(0, Math.ceil(learning_stimuli.length / 2));
 const learning_stimuli_part2 = learning_stimuli.slice(Math.ceil(learning_stimuli.length / 2));
@@ -537,9 +540,7 @@ const sound_recognition_trial = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: '<p style="font-size: 1.5em; text-align: center;">音声を再生します...</p>',
     choices: "NO_KEYS",
-    // ▼▼▼ ご要望に応じてこの部分を変更（最初からキー案内を表示） ▼▼▼
     prompt: `<p style="font-size: 1.2em; text-align: center;"><b>1つ目のパターンの場合は「J」キー</b></p><p style="font-size: 1.2em; text-align: center;"><b>2つ目のパターンの場合は「K」キー</b></p>`,
-    // ▲▲▲ 変更ここまで ▲▲▲
     trial_duration: null,
     response_ends_trial: true,
     data: function(){
@@ -567,17 +568,11 @@ const sound_recognition_trial = {
         const audio4 = new Audio(second_pair_sounds[1]);
         const display_element = jsPsych.getDisplayElement();
         const stimulus_div = display_element.querySelector('.jspsych-html-keyboard-response-stimulus');
-        const prompt_div = display_element.querySelector('.jspsych-html-keyboard-response-prompt'); // prompt要素自体は存在する
-
+        
         let soundsPlayed = 0;
         const totalSounds = 4;
         const enableResponse = () => {
             if (stimulus_div) stimulus_div.innerHTML = `<p style="text-align: center;">どちらのペアが課題フェーズで聞いたペアでしたか？</p>`;
-            
-            // ▼▼▼ ご要望に応じてこの部分を削除（既にpromptに設定済みのため） ▼▼▼
-            // if (prompt_div) prompt_div.innerHTML = `...`; 
-            // ▲▲▲ 変更ここまで ▲▲▲
-            
              jsPsych.pluginAPI.getKeyboardResponse({
                  callback_function: (info) => { jsPsych.finishTrial({ rt: info.rt, response: info.key }); },
                  valid_responses: ['j', 'k'], rt_method: 'performance', persist: false, allow_held_key: false
@@ -594,7 +589,6 @@ const sound_recognition_trial = {
         audio3.addEventListener('error', (e) => { console.error("Audio 3 error:", e); soundEnded(); });
         audio4.addEventListener('error', (e) => { console.error("Audio 4 error:", e); soundEnded(); });
         
-        // 「1組目...」と表示して再生する部分
         const play_second_pair = () => {
             if(stimulus_div) stimulus_div.innerHTML = '<p style="font-size: 1.5em; text-align: center;">2組目...</p>';
             setTimeout(() => { audio3.play().catch(e => { console.error("Audio 3 play failed:", e); soundEnded(); }); }, 700);
@@ -603,7 +597,6 @@ const sound_recognition_trial = {
         audio2.addEventListener('ended', play_second_pair);
         audio3.addEventListener('ended', () => setTimeout(() => audio4.play().catch(e => { console.error("Audio 4 play failed:", e); soundEnded(); }), 100));
         
-        // 「2組目...」と表示して再生する部分
         setTimeout(() => {
             if(stimulus_div) stimulus_div.innerHTML = '<p style="font-size: 1.5em; text-align: center;">1組目...</p>';
             audio1.play().catch(e => { console.error("Audio 1 play failed:", e); soundEnded(); });
@@ -620,16 +613,34 @@ const sound_recognition_block = {
 // --- タイムライン全体の定義 ---
 const timeline = [];
 timeline.push(initials_trial);
+
+// ▼ 1. ID入力の直後に音と練習画像を読み込む
+timeline.push(preload_initial);
+
 timeline.push(instructions_start);
 timeline.push(sound_check_loop_node);
 timeline.push(task_explanation_trial);
+
+// ▼ 2. 練習の前に、学習用画像の前半を読み込んでおく (説明を読んでいる間に完了するかも)
+timeline.push(preload_learning_1);
+
 timeline.push(practice_block);
 timeline.push(practice_instructions_end);
-timeline.push(preload_trial);
+
+// (ここにあった巨大な preload_trial は削除しました)
+
 timeline.push(learning_block_1);
+
+// ▼ 3. 休憩中に、学習用画像の後半を読み込む
 timeline.push(learning_break_trial);
+timeline.push(preload_learning_2);
+
 timeline.push(learning_block_2);
-timeline.push(instructions_image_rec);
+
+// ▼ 4. テストの前に、テスト用画像を読み込む
+timeline.push(instructions_image_rec); // 教示の前に置くか後に置くかはお好みですが、教示後の方が安全
+timeline.push(preload_test);
+
 timeline.push(image_recognition_block_1);
 timeline.push(image_rec_break_trial);
 timeline.push(image_recognition_block_2);
