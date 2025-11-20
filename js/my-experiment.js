@@ -1,213 +1,11 @@
-
-// -------------------- START: ADDED STUDY DESCRIPTION / CONSENT / WITHDRAWAL BLOCK --------------------
-// Edit STUDY_CONTACT near the top to change phone/email/name/address as needed.
-
+// -------------------- 連絡先・個人情報設定 (ここを書き換えてください) --------------------
 const STUDY_CONTACT = {
-  name: '樋口　洋子',
+  name: '樋口洋子', // 研究責任者の氏名
   affiliation: '千葉工業大学 情報変革科学部 認知情報科学科',
   address: '千葉県習志野市津田沼2-17-1',
-  phone: '047-478-0107',
-  email: 'higuchi.yoko@p.chibakoudai.jp'
+  phone: '047-478-0107', // 電話番号
+  email: 'higuchi.yoko@p.chibakoudai.jp' // メールアドレス
 };
-
-// 1) 説明文書（目を通したら J キー。J 以外のキーは無視）
-const study_description_trial = {
-  type: jsPsychHtmlKeyboardResponse,
-  stimulus: function() {
-    return `
-      <div style="max-width: 900px; margin: 0 auto; line-height: 1.6; text-align: left;">
-        <h2 style="text-align:center;">実験説明書</h2>
-        <div style="display:flex; gap:16px; align-items:flex-start;">
-          <img src="scenes/Illustration.png" alt="Illustration" style="width:220px; height:auto; border:1px solid #ccc;"/>
-          <div style="flex:1;">
-            <p><strong>研究課題：</strong>見たり聞いたりすることでヒトが学ぶ仕組みの研究</p>
-            <p><strong>研究実施場所：</strong>千葉工業大学　情報変革科学部　認知情報科学科</p>
-            <p><strong>研究責任者：</strong>${STUDY_CONTACT.name}（${STUDY_CONTACT.affiliation}）</p>
-            <hr>
-            <p><strong>【研究目的】</strong></p>
-            <p>本研究では、ヒトが何度も見たり聞いたりする訓練を通じて、見え方や聞こえ方、感じ方、考え方がどのように変わり、その変化には脳のどのような仕組みが関わるか明らかにすることを目的として行われています。また、この実験は、個人の能力を検査するものではありません。</p>
-            <p><strong>【研究方法】</strong></p>
-            <p>実験室内の椅子に座り、ディスプレイに向かって課題を行っていただきます。行っていただく課題は、ディスプレイやスピーカー、イヤホンなどから提示される視聴覚刺激の種類の判別です。課題は小休止を挟みながら進行します。</p>
-            <p>（説明文書の全文は研究責任者が配布した文書に従ってください。）</p>
-          </div>
-        </div>
-        <hr>
-        <p style="text-align:center; font-size:1.1em;">この説明を読み終えたら、<strong>J キー</strong>を押してください。</p>
-      </div>
-    `;
-  },
-  choices: ['j'],
-  data: { task_phase: 'study_description' }
-};
-
-// 2) 同意書フォーム（チェックボックス・必須入力をすべて埋めたときのみ「次へ」ボタンで進む）
-const consent_form_html = `
-  <div style="max-width:900px; margin:0 auto; line-height:1.6; text-align:left;">
-    <h2 style="text-align:center;">研究参加同意書</h2>
-    <p>以下の項目をよく読み、当てはまる項目にチェック・必要事項の記入をお願いします。</p>
-    <form id="consent-form" autocomplete="off">
-      <div>
-        <label><input type="checkbox" name="purpose_confirm" required /> 研究目的・研究方法を理解しました。</label>
-      </div>
-      <div>
-        <label><input type="checkbox" name="condition_confirm" required /> 参加条件を満たしていることを確認しました。</label>
-      </div>
-      <div>
-        <label><input type="checkbox" name="withdraw_confirm" required /> いつでも実験を中断・同意撤回できることを理解しました。</label>
-      </div>
-      <div>
-        <label><input type="checkbox" name="privacy_confirm" required /> 個人情報の保護とデータ取り扱いに同意します。</label>
-      </div>
-      <div>
-        <label><input type="checkbox" name="publication_confirm" required /> 匿名化したデータが学術データベースに掲載される可能性を理解しました。</label>
-      </div>
-      <div>
-        <label><input type="checkbox" name="reward_confirm" required /> 謝礼・交通費について理解しました。</label>
-      </div>
-      <hr />
-      <div style="display:flex; gap:12px; flex-wrap:wrap;">
-        <div style="flex:1; min-width:200px;">
-          <label>フリガナ（任意）<br><input type="text" name="kana" placeholder="例：ヤマダ タロウ" /></label>
-        </div>
-        <div style="flex:1; min-width:120px;">
-          <label>年齢（必須）<br><input type="number" name="age" min="18" required /></label>
-        </div>
-        <div style="flex:1; min-width:120px;">
-          <label>性別（必須）<br>
-            <select name="sex" required>
-              <option value="">選択してください</option>
-              <option value="male">男</option>
-              <option value="female">女</option>
-              <option value="other">その他/回答しない</option>
-            </select>
-          </label>
-        </div>
-      </div>
-      <div style="margin-top:12px;">
-        <label>連絡用 Email（任意）<br><input type="email" name="email" placeholder="example@example.com" /></label>
-      </div>
-      <div style="margin-top:12px;">
-        <label>署名（電子的に署名する場合は名前を入力してください）<br><input type="text" name="signature" placeholder="署名" required /></label>
-      </div>
-      <div style="margin-top:14px;">
-        <small>研究責任者・連絡先： ${STUDY_CONTACT.name} / 電話: ${STUDY_CONTACT.phone} / Email: ${STUDY_CONTACT.email}</small>
-      </div>
-      <div style="margin-top:18px; text-align:center;">
-        <button id="consent-next" type="button" disabled style="font-size:1.1em; padding:8px 20px;">次へ</button>
-      </div>
-    </form>
-  </div>
-`;
-
-const consent_form_trial = {
-  type: jsPsychHtmlKeyboardResponse,
-  stimulus: consent_form_html,
-  choices: "NO_KEYS",
-  data: { task_phase: 'consent_form' },
-  on_load: function() {
-    const display_element = jsPsych.getDisplayElement();
-    const form = display_element.querySelector('#consent-form');
-    const nextBtn = display_element.querySelector('#consent-next');
-
-    if (!form || !nextBtn) {
-      console.error('Consent form elements not found');
-      return;
-    }
-
-    function allRequiredFilled() {
-      // required checkboxes
-      const requiredCheckboxes = ['purpose_confirm','condition_confirm','withdraw_confirm','privacy_confirm','publication_confirm','reward_confirm'];
-      for (const name of requiredCheckboxes) {
-        const el = form.querySelector(`[name="${name}"]`);
-        if (!el || !el.checked) return false;
-      }
-      // required inputs
-      const age = form.querySelector('[name="age"]');
-      const sex = form.querySelector('[name="sex"]');
-      const signature = form.querySelector('[name="signature"]');
-      if (!age || age.value === '' ) return false;
-      if (!sex || sex.value === '' ) return false;
-      if (!signature || signature.value.trim() === '') return false;
-      return true;
-    }
-
-    function validateAndToggle() {
-      try {
-        nextBtn.disabled = !allRequiredFilled();
-      } catch (e) { console.error(e); nextBtn.disabled = true; }
-    }
-
-    form.addEventListener('change', validateAndToggle);
-    form.addEventListener('input', validateAndToggle);
-
-    nextBtn.addEventListener('click', function() {
-      if (!allRequiredFilled()) {
-        nextBtn.disabled = true; return;
-      }
-      // collect form data
-      const formData = new FormData(form);
-      const obj = {};
-      for (const [k,v] of formData.entries()) { obj[k] = v; }
-      // record the consent data into jsPsych data
-      jsPsych.data.write({ task_phase: 'consent_form', consent: true, consent_data: obj });
-      jsPsych.finishTrial();
-    });
-
-    // initial validation check
-    validateAndToggle();
-  }
-};
-
-// 3) 同意撤回連絡先画面（同様に J キーで進む）
-const withdrawal_info_trial = {
-  type: jsPsychHtmlKeyboardResponse,
-  stimulus: function() {
-    return `
-      <div style="max-width:900px; margin:0 auto; line-height:1.6; text-align:left;">
-        <h2 style="text-align:center;">同意撤回の連絡先</h2>
-        <p>実験結果の使用などについて同意を撤回したい場合は、下記の連絡先までご連絡ください。</p>
-        <p><strong>連絡先：</strong><br>${STUDY_CONTACT.name}（${STUDY_CONTACT.affiliation}）<br>${STUDY_CONTACT.address}<br>電話: ${STUDY_CONTACT.phone}<br>Email: ${STUDY_CONTACT.email}</p>
-        <hr>
-        <p style="text-align:center; font-size:1.1em;">この説明を読み終えたら、<strong>J キー</strong>を押してください。</p>
-      </div>
-    `;
-  },
-  choices: ['j'],
-  data: { task_phase: 'withdrawal_info' }
-};
-
-// Insert the trials at the start of an existing global 'timeline' array.
-// If timeline isn't defined yet, poll for a short time and insert when ready.
-function insertConsentAndDescriptionAtTimelineStart() {
-  try {
-    if (typeof timeline === 'undefined' || !Array.isArray(timeline)) {
-      console.warn('Global timeline not found yet. Will retry after a short delay.');
-      return false;
-    }
-    // insert in order: description -> consent -> withdrawal -> (existing first trial...)
-    timeline.unshift(withdrawal_info_trial);
-    timeline.unshift(consent_form_trial);
-    timeline.unshift(study_description_trial);
-
-    console.log('Inserted description, consent, and withdrawal trials at start of timeline.');
-    return true;
-  } catch (e) {
-    console.error('Failed to insert trials into timeline:', e);
-    return false;
-  }
-}
-
-(function waitForTimelineAndInsert() {
-  if (insertConsentAndDescriptionAtTimelineStart()) return;
-  let attempts = 0;
-  const interval = setInterval(() => {
-    attempts++;
-    if (insertConsentAndDescriptionAtTimelineStart() || attempts > 50) { clearInterval(interval); if (attempts>50) console.warn('Could not insert trials automatically. You may need to manually add the three trials to the start of your timeline.'); }
-  }, 100);
-})();
-
-// -------------------- END: ADDED STUDY DESCRIPTION / CONSENT / WITHDRAWAL BLOCK --------------------
-
 
 // -------------------- ヘルパー関数 --------------------
 // ファイル名に使えない文字を置換・削除する
@@ -414,6 +212,139 @@ const jsPsych = initJsPsych({
 
 // -------------------- 各種試行の定義 --------------------
 
+// ▼▼▼ 1. 実験説明書（Jキーで遷移） ▼▼▼
+const study_description_trial = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: function() {
+    return `
+    <div style="max-width: 900px; margin: 0 auto; line-height: 1.6; text-align: left; font-size: 16px;">
+      <h2 style="text-align:center;">実験説明書</h2>
+      <div style="display:flex; gap:20px; align-items:flex-start; margin-bottom: 20px;">
+        <div style="flex:0 0 250px;">
+             <img src="scenes/Illustration.png" alt="Illustration" style="width:100%; height:auto; border:1px solid #ddd; padding:5px;"/>
+        </div>
+        <div style="flex:1;">
+          <p><strong>研究課題：</strong>見たり聞いたりすることでヒトが学ぶ仕組みの研究</p>
+          <p><strong>研究実施場所：</strong>千葉工業大学　情報変革科学部　認知情報科学科</p>
+          <p><strong>研究責任者：</strong>${STUDY_CONTACT.affiliation}<br>助教 ${STUDY_CONTACT.name}</p>
+          <hr>
+          <p><strong>【研究目的】</strong></p>
+          <p>本研究では、ヒトが何度も見たり聞いたりする訓練を通じて、見え方や聞こえ方、感じ方、考え方がどのように変わり、その変化には脳のどのような仕組みが関わるか明らかにすることを目的として行われています。また、この実験は、個人の能力を検査するものではありません。本実験への参加により予想される利益・不利益はありません。</p>
+          <p><strong>【研究方法】</strong></p>
+          <p>実験室内の椅子に座り、ディスプレイに向かって課題を行っていただきます。行っていただく課題は、ディスプレイやスピーカー、イヤホンなどから提示される視聴覚刺激の種類の判別です（左図参照）。マウスやキーボード等の操作、またはマイクへの発話による回答を行っていただきます。</p>
+          <p>課題は5〜10分ごとに小休止します。ご自身の判断で休憩を取りながら課題を行います。全ての測定に要する時間は、1回あたり最大2時間です。</p>
+        </div>
+      </div>
+      <hr>
+      <p style="text-align:center; font-size:1.1em; font-weight:bold;">内容を確認しましたら、<span style="color:red;">J キー</span> を押して次へ進んでください。</p>
+    </div>`;
+  },
+  choices: ['j'],
+  data: { task_phase: 'study_description' }
+};
+
+// ▼▼▼ 2. 同意書（チェックボックス・入力必須、次へボタンで遷移） ▼▼▼
+const consent_form_trial = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <div style="max-width:800px; margin:0 auto; line-height:1.6; text-align:left; font-size:15px;">
+    <h2 style="text-align:center;">研究参加同意書</h2>
+    <p><strong>${STUDY_CONTACT.affiliation}<br>助教 ${STUDY_CONTACT.name} 殿</strong></p>
+    <p>私は以下の項目について確認し、本研究の参加に同意します。</p>
+    
+    <form id="consent-form" style="border:1px solid #ccc; padding:20px; border-radius:5px; background-color:#fff;">
+      <div style="margin-bottom: 10px;"><label><input type="checkbox" name="check1" required> 研究目的・研究方法</label></div>
+      <div style="margin-bottom: 10px;"><label><input type="checkbox" name="check2" required> 参加条件（視力0.8以上、18歳以上等）</label></div>
+      <div style="margin-bottom: 10px;"><label><input type="checkbox" name="check3" required> いつでも実験の中断や参加の同意を撤回できること</label></div>
+      <div style="margin-bottom: 10px;"><label><input type="checkbox" name="check4" required> 個人情報の保護</label></div>
+      <div style="margin-bottom: 10px;"><label><input type="checkbox" name="check5" required> 特定の個人を識別できない状態で測定データが公的データベースで公開される可能性があること</label></div>
+      <div style="margin-bottom: 10px;"><label><input type="checkbox" name="check6" required> 謝礼・交通費</label></div>
+      <div style="margin-bottom: 10px;"><label><input type="checkbox" name="check7" required> 知的財産の権利が自分にないこと</label></div>
+      <div style="margin-bottom: 10px;"><label><input type="checkbox" name="check8" required> その他について</label></div>
+      <hr>
+      <div style="display:flex; gap:20px; margin-bottom:10px;">
+        <div style="flex:1;">
+          <label>フリガナ（必須）<br><input type="text" name="kana" required style="width:100%; padding:5px;"></label>
+        </div>
+        <div style="flex:1;">
+          <label>年齢（必須）<br><input type="number" name="age" min="18" required style="width:50%; padding:5px;"> 歳</label>
+        </div>
+        <div style="flex:1;">
+          <label>性別（必須）<br>
+            <select name="gender" required style="padding:5px;">
+              <option value="">選択してください</option>
+              <option value="male">男</option>
+              <option value="female">女</option>
+              <option value="other">その他</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label>署名（必須：お名前を入力してください）<br><input type="text" name="signature" required style="width:100%; padding:5px;"></label>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label>Email（必須）<br><input type="email" name="email" required style="width:100%; padding:5px;"></label>
+      </div>
+      <p style="font-size:0.9em; text-align:right;">署名日：${new Date().toLocaleDateString()}</p>
+      
+      <div style="text-align:center; margin-top:20px;">
+        <button type="button" id="btn-consent" disabled style="padding:10px 30px; font-size:1.2em; cursor:pointer;">次へ</button>
+      </div>
+    </form>
+  </div>`,
+  choices: "NO_KEYS", // キーボードでの進行を無効化
+  on_load: function() {
+    const form = document.getElementById('consent-form');
+    const btn = document.getElementById('btn-consent');
+    
+    // 入力状態を監視してボタンの有効/無効を切り替え
+    const checkValidity = () => {
+      const isValid = form.checkValidity(); // 全てのrequiredが満たされているか
+      btn.disabled = !isValid;
+    };
+
+    form.addEventListener('change', checkValidity);
+    form.addEventListener('input', checkValidity);
+
+    // ボタンクリック時の処理
+    btn.addEventListener('click', () => {
+      // 同意データを取得（必要なら保存可能）
+      // const formData = new FormData(form);
+      // const data = Object.fromEntries(formData.entries());
+      // jsPsych.data.addProperties({ consent_info: data }); 
+      
+      jsPsych.finishTrial();
+    });
+  }
+};
+
+// ▼▼▼ 3. 同意撤回連絡先（Jキーで遷移） ▼▼▼
+const withdrawal_info_trial = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: function() {
+    return `
+    <div style="max-width: 800px; margin: 0 auto; line-height: 1.6; text-align: left;">
+      <h2 style="text-align:center;">実験の中断・同意の撤回について</h2>
+      <p>実験への参加は任意です。いつでも実験への参加を中断できます。また実験途中や実験後であっても同意を撤回することができます。同意撤回や実験の中断によって不利な扱いを受けることはありません。</p>
+      <p>同意撤回の意思が示されたときは、学会等の発表前であれば計測データ等は破棄します。</p>
+      <hr>
+      <p>もし実験結果の使用などに同意の撤回をしたい場合は、下記アドレスまで連絡してください。</p>
+      <div style="background-color:#f9f9f9; padding:20px; border-radius:5px; text-align:center;">
+        <p><strong>研究責任者：${STUDY_CONTACT.name}</strong></p>
+        <p>${STUDY_CONTACT.affiliation}</p>
+        <p>${STUDY_CONTACT.address}</p>
+        <p>電話：${STUDY_CONTACT.phone}</p>
+        <p>Email: <a href="mailto:${STUDY_CONTACT.email}">${STUDY_CONTACT.email}</a></p>
+      </div>
+      <hr>
+      <p style="text-align:center; font-size:1.1em; font-weight:bold;">内容を確認しましたら、<span style="color:red;">J キー</span> を押して実験を開始してください。</p>
+    </div>`;
+  },
+  choices: ['j'],
+  data: { task_phase: 'withdrawal_info' }
+};
+
 const initials_trial = {
   type: jsPsychSurveyText,
   questions: [
@@ -434,7 +365,7 @@ const initials_trial = {
       placeholder: "例: ST"
     }
   ],
-  button_label: "同意して実験を開始する",
+  button_label: "IDを送信して開始", // ラベルを少し変更
   on_finish: function(data) {
     participantInitials = sanitizeFileNamePart(data.response.initials);
     jsPsych.data.addProperties({participant_initials: participantInitials});
@@ -823,6 +754,13 @@ const sound_recognition_block = {
 
 // --- タイムライン全体の定義 ---
 const timeline = [];
+
+// ▼▼▼ 実験説明書・同意書・同意撤回連絡先を追加 ▼▼▼
+timeline.push(study_description_trial);
+timeline.push(consent_form_trial);
+timeline.push(withdrawal_info_trial);
+// ▲▲▲ 追加ここまで ▲▲▲
+
 timeline.push(initials_trial);
 
 // ▼ 1. ID入力の直後に音と練習画像を読み込む
